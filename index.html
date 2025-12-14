@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Florenza Clinic - Lucky Wheel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Kanit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .title-text {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #4A148C;
+            text-shadow: 2px 2px 0px rgba(255, 255, 255, 0.5);
+            margin-bottom: 2vh;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 90vw;
+            max-width: 450px;
+            aspect-ratio: 1 / 1;
+            margin: 1vh auto;
+            /* เพิ่ม Filter เงาที่ตัว Container แทนขอบ */
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            /* --- แก้ไข: ลบขอบขาว (Border) และเงา (Box-shadow) ออก --- */
+            border: none; 
+            box-shadow: none;
+            /* ---------------------------------------------------- */
+            transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .stopper {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid #D500F9;
+            z-index: 10;
+            filter: drop-shadow(0 4px 2px rgba(0,0,0,0.2));
+        }
+
+        .spin-btn {
+            margin-top: 3vh;
+            padding: 15px 0;
+            width: 80%;
+            max-width: 320px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(45deg, #8E24AA, #BA68C8);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(123, 31, 162, 0.5);
+            transition: transform 0.1s;
+        }
+
+        .spin-btn:active {
+            transform: scale(0.96);
+        }
+
+        .spin-btn:disabled {
+            background: #bdbdbd;
+            box-shadow: none;
+            cursor: default;
+        }
+
+        .result-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            width: 85%;
+            max-width: 350px;
+            padding: 30px 20px;
+            border-radius: 25px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            border: 4px solid #8E24AA;
+            animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal-content h2 {
+            color: #4A148C;
+            margin: 0 0 15px 0;
+            font-size: 2rem;
+            font-weight: 800;
+        }
+
+        .modal-content .prize-text {
+            font-size: 1.8rem;
+            color: #D500F9;
+            font-weight: bold;
+            margin-bottom: 30px;
+            line-height: 1.2;
+        }
+
+        .close-btn {
+            padding: 12px 50px;
+            background: #8E24AA;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        @keyframes popUp {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        @media (max-width: 400px) {
+            .title-text {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 class="title-text">Florenza<br>Wheel</h1>
+
+        <div class="wheel-container">
+            <div class="stopper"></div>
+            <canvas id="wheel" width="800" height="800"></canvas>
+        </div>
+
+        <button class="spin-btn" id="spinBtn">กดเพื่อลุ้นรางวัล</button>
+    </div>
+
+    <div class="result-modal" id="resultModal">
+        <div class="modal-content">
+            <h2>ยินดีด้วย!</h2>
+            <div class="prize-text" id="winnerResult">...</div>
+            <button class="close-btn" onclick="closeModal()">รับรางวัล</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        const modal = document.getElementById('resultModal');
+        const winnerText = document.getElementById('winnerResult');
+
+        const prizes = [
+            "Pico", "น้ำฟรี 1 แก้ว", "รับ 300฿", "รับ 200฿", "เลเซอร์รักแร้ ฟรี 1",
+            "Fat 1", "รับ 500", "เอาใหม่สู้ๆ", "รับ 100฿", "ไลฟ์สด 2 ชม"
+        ];
+
+        const colors = [
+            "#7B1FA2", "#F3E5F5", "#7B1FA2", "#F3E5F5", "#7B1FA2", 
+            "#F3E5F5", "#7B1FA2", "#F3E5F5", "#7B1FA2", "#F3E5F5"
+        ];
+
+        let currentRotation = 0;
+
+        function drawWheel() {
+            const numSegments = prizes.length;
+            const arcSize = (2 * Math.PI) / numSegments;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = canvas.width / 2;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < numSegments; i++) {
+                const angle = i * arcSize;
+                
+                ctx.beginPath();
+                ctx.fillStyle = colors[i];
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, angle + arcSize);
+                ctx.lineTo(centerX, centerY);
+                ctx.fill();
+
+                // ขอบระหว่างช่อง (ยังคงไว้เพื่อให้เห็นการแบ่งช่อง)
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 4; // ลดขนาดเส้นแบ่งลงนิดหน่อย
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + arcSize / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = (i % 2 === 0) ? "#FFFFFF" : "#4A148C";
+                
+                const text = prizes[i];
+                let fontSize = 52; 
+                ctx.font = `bold ${fontSize}px Kanit`;
+                const maxTextWidth = radius - 55;
+                while (ctx.measureText(text).width > maxTextWidth && fontSize > 18) {
+                    fontSize--;
+                    ctx.font = `bold ${fontSize}px Kanit`;
+                }
+
+                ctx.fillText(text, radius - 30, 15);
+                ctx.restore();
+            }
+        }
+
+        function spin() {
+            spinBtn.disabled = true;
+            winnerText.innerText = "...";
+            const randomDegree = Math.floor(1800 + Math.random() * 3600); 
+            currentRotation += randomDegree;
+            canvas.style.transform = `rotate(-${currentRotation}deg)`;
+
+            setTimeout(() => {
+                calculateWinner(currentRotation);
+                spinBtn.disabled = false;
+            }, 4000);
+        }
+
+        function calculateWinner(totalRotation) {
+            const actualRotation = totalRotation % 360;
+            const angleAtPointer = (270 + actualRotation) % 360;
+            const segmentAngle = 360 / prizes.length;
+            let index = Math.floor(angleAtPointer / segmentAngle);
+            showResult(prizes[index]);
+        }
+
+        function showResult(prize) {
+            winnerText.innerText = prize;
+            modal.style.display = "flex";
+            triggerStarCelebration(); 
+        }
+
+        function closeModal() {
+            modal.style.display = "none";
+        }
+
+        function triggerStarCelebration() {
+            var duration = 3000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { 
+                startVelocity: 30, 
+                spread: 360, 
+                ticks: 60, 
+                zIndex: 9999,
+                shapes: ['star'], 
+                scalar: 1.5,
+                colors: ['#FFD700', '#7B1FA2', '#E1BEE7', '#ffffff'] 
+            };
+
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                var particleCount = 50 * (timeLeft / duration);
+                
+                confetti(Object.assign({}, defaults, { 
+                    particleCount,
+                    origin: { x: Math.random(), y: Math.random() * 0.3 - 0.2 } 
+                }));
+            }, 200);
+        }
+
+        drawWheel();
+        spinBtn.addEventListener('click', spin);
+        window.addEventListener('resize', drawWheel);
+
+    </script>
+</body>
+</html>
