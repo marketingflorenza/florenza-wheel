@@ -12,6 +12,7 @@
             box-sizing: border-box;
             font-family: 'Kanit', sans-serif;
             -webkit-tap-highlight-color: transparent;
+            user-select: none; /* ป้องกันการเลือกข้อความเวลาแตะรัวๆ */
         }
 
         body {
@@ -46,6 +47,12 @@
             letter-spacing: 2px;
             text-align: center;
             line-height: 1.1;
+            cursor: pointer; /* แสดงว่าเป็นจุดที่แตะได้ */
+            transition: transform 0.1s;
+        }
+
+        .title-text:active {
+            transform: scale(0.95);
         }
 
         .wheel-container {
@@ -54,7 +61,6 @@
             max-width: 450px;
             aspect-ratio: 1 / 1;
             margin: 1vh auto;
-            /* เพิ่ม Filter เงาที่ตัว Container แทนขอบ */
             filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
         }
 
@@ -63,10 +69,8 @@
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            /* --- แก้ไข: ลบขอบขาว (Border) และเงา (Box-shadow) ออก --- */
             border: none; 
             box-shadow: none;
-            /* ---------------------------------------------------- */
             transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);
         }
 
@@ -177,7 +181,8 @@
 <body>
 
     <div class="container">
-        <h1 class="title-text">Florenza<br>Wheel</h1>
+        <!-- แตะที่นี่ 3 ครั้งเพื่อเปิดโหมดลับ -->
+        <h1 class="title-text" id="cheatTrigger">Florenza<br>Wheel</h1>
 
         <div class="wheel-container">
             <div class="stopper"></div>
@@ -201,9 +206,10 @@
         const spinBtn = document.getElementById('spinBtn');
         const modal = document.getElementById('resultModal');
         const winnerText = document.getElementById('winnerResult');
+        const cheatTrigger = document.getElementById('cheatTrigger');
 
         const prizes = [
-            "รับ 200฿", "แก้มือรอบหน้า", "รับ 300฿", "รับ 200฿", "รับ 1,000฿",
+            "รับ 200฿", "แก้มือรอบหน้า", "รับ 300฿", "รับ 200฿", "รับ 1,000฿", 
             "รับ 100฿", "รับ 500฿", "รับ 100฿", "รับ 100฿", "หมุนอีกรอบ"
         ];
 
@@ -213,6 +219,30 @@
         ];
 
         let currentRotation = 0;
+        
+        // --- ส่วนของฟังก์ชันลับ (Cheat Mode) ---
+        let cheatMode = false;
+        let tapCount = 0;
+        let tapTimer;
+
+        cheatTrigger.addEventListener('click', (e) => {
+            tapCount++;
+            clearTimeout(tapTimer);
+            
+            // รีเซ็ตการนับถ้าไม่ได้แตะภายใน 0.5 วินาที
+            tapTimer = setTimeout(() => {
+                tapCount = 0;
+            }, 500);
+
+            // ถ้าแตะครบ 3 ครั้ง
+            if (tapCount === 3) {
+                cheatMode = true;
+                tapCount = 0;
+                // แจ้งเตือนแบบ Subtle ให้คนคุมรู้
+                alert("✨ เปิดโหมดล็อครางวัล: 1,000฿ ✨");
+            }
+        });
+        // ------------------------------------
 
         function drawWheel() {
             const numSegments = prizes.length;
@@ -233,9 +263,8 @@
                 ctx.lineTo(centerX, centerY);
                 ctx.fill();
 
-                // ขอบระหว่างช่อง (ยังคงไว้เพื่อให้เห็นการแบ่งช่อง)
                 ctx.strokeStyle = "#ffffff";
-                ctx.lineWidth = 4; // ลดขนาดเส้นแบ่งลงนิดหน่อย
+                ctx.lineWidth = 4;
                 ctx.stroke();
 
                 ctx.save();
@@ -261,8 +290,41 @@
         function spin() {
             spinBtn.disabled = true;
             winnerText.innerText = "...";
-            const randomDegree = Math.floor(1800 + Math.random() * 3600); 
-            currentRotation += randomDegree;
+            
+            let spinAngle;
+
+            if (cheatMode) {
+                // --- ลอจิกสำหรับโหมดล็อครางวัล ---
+                // "รับ 1,000฿" อยู่ที่ index 4 ของ array
+                // เราต้องการให้ผลลัพธ์สุดท้าย (Final Rotation) ชี้ไปที่ index 4
+                
+                // คำนวณองศาที่ต้องการให้เข็มชี้ (Pointer อยู่ที่ 270 องศา หรือ 12 นาฬิกา)
+                // Index 4 อยู่ช่วงมุม (4 * 36) ถึง (5 * 36) = 144 ถึง 180 องศา
+                // จุดกึ่งกลางคือ 162 องศา
+                
+                // สูตร: (270 + rotation) % 360 = targetAngle (162)
+                // ดังนั้น rotation % 360 ต้องเท่ากับ (162 - 270) = -108 => หรือ 252 องศา
+                
+                const targetBaseDegree = 252; // องศาที่จะทำให้ตกที่ 1000 บาท
+                
+                // หมุนอย่างต่ำ 5 รอบ (1800 องศา)
+                const minSpins = 1800; 
+                
+                // คำนวณค่าที่จะต้องบวกเพิ่มจาก currentRotation
+                const currentMod = currentRotation % 360;
+                let neededToAdd = targetBaseDegree - currentMod;
+                if (neededToAdd < 0) neededToAdd += 360;
+                
+                spinAngle = minSpins + neededToAdd;
+                
+                // ปิดโหมดโกงหลังจากใช้แล้ว (ถ้าต้องการใช้ซ้ำต้องกดสูตรใหม่)
+                cheatMode = false;
+            } else {
+                // โหมดปกติ: สุ่มตามดวง
+                spinAngle = Math.floor(1800 + Math.random() * 3600); 
+            }
+
+            currentRotation += spinAngle;
             canvas.style.transform = `rotate(-${currentRotation}deg)`;
 
             setTimeout(() => {
